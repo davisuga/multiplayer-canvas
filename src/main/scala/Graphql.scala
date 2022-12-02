@@ -9,21 +9,26 @@ import zio.stream.ZStream
 import multiplayer_canvas._
 
 def getCanvas(id: ID) =
-  println("getting board!")
-  CanvasStorage.getCanvas(id)
+  InMemory.getCanvas(id)
 
 def putPiece(boardId: ID, value: Pixel, timestamp: Long) = ???
 
 case class Subscriptions(
     newDrawings: ZStream[Any, Nothing, Draw]
 )
+case class Mutations(
+    draw: Draw => Option[multiplayer_canvas.types.Canvas],
+    createCanvas: Size => Canvas
+)
 
-case class Mutations(addDraw: Draw => ZIO[Any, Nothing, Boolean])
-
-case class Queries(board: (id: ID) => Option[Canvas])
+case class Queries(canvas: (id: ID) => Option[Canvas])
 
 val queries = Queries(getCanvas)
-val mutations = Mutations(addDraw)
+val mutations =
+  Mutations(
+    multiplayer_canvas.draw.service.draw,
+    (size => InMemory.createCanvas(size.rows, size.columns))
+  )
 
 def getGraphQLInterpreter() =
   for {
