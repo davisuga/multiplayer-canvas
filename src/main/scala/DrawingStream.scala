@@ -12,4 +12,4 @@ def getDrawingStream() = queue.map(queue => ZStream.fromQueue(queue))
 def subscribe(handler: (Draw => ZIO[Any, Nothing, Any])) =
   getDrawingStream().flatMap(_.foreach(handler))
 
-def addDraw(draw: Draw) = queue.flatMap(q => q.offer(draw))
+def queueDraw(draw: Draw) = queue.flatMap(q => q.offer(draw))
