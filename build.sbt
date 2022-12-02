@@ -11,3 +11,4 @@ lazy val root = project
 libraryDependencies += "com.github.ghostdogpr" %% "caliban" % "2.0.1"
 libraryDependencies += "com.github.ghostdogpr" %% "caliban-http4s" % "2.0.1" // routes for http4s
 libraryDependencies += "com.github.ghostdogpr" %% "caliban-zio-http" % "2.0.1" // routes for zio-http
+scalacOptions += "-Xmax-inlines:64"
