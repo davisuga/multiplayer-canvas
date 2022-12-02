@@ -17,24 +17,24 @@ case class Subscriptions(
     newDrawings: ZStream[Any, Nothing, Draw]
 )
 case class Mutations(
-    draw: Draw => Option[multiplayer_canvas.types.Canvas],
-    createCanvas: Size => Canvas
+    draw: Draw => ZIO[Any, Throwable, Canvas],
+    createCanvas: Size => ZIO[Any, Nothing, Canvas]
 )
 
 case class Queries(canvas: (id: ID) => Option[Canvas])
 
 val queries = Queries(getCanvas)
-val mutations =
-  Mutations(
-    multiplayer_canvas.draw.service.draw,
-    (size => InMemory.createCanvas(size.rows, size.columns))
-  )
 
 def getGraphQLInterpreter() =
   for {
-    drawingStream <- getDrawingStream()
-    subscriptions = Subscriptions(drawingStream)
+    queue <- makeDrawingQueue()
+    mutations =
+      Mutations(
+        multiplayer_canvas.draw.service.draw(queue),
+        (size => InMemory.createCanvas(size.rows, size.columns))
+      )
+
     interpreter <- graphQL(
-      RootResolver(queries, mutations, subscriptions)
+      RootResolver(queries, mutations)
     ).interpreter
   } yield (interpreter)
