@@ -10,9 +10,7 @@ import io.circe.parser.*
 import io.circe.syntax.*
 import fs2.{Stream, *}
 import fs2.concurrent.Topic
-import multiplayer_canvas.drawing_stream.*
-import multiplayer_canvas.graphql.*
-import multiplayer_canvas.types.*
+
 import org.http4s.StaticFile
 import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.implicits.*
@@ -23,6 +21,7 @@ import org.http4s.websocket.WebSocketFrame
 import org.http4s.websocket.WebSocketFrame.{Close, Text}
 import zio.{Runtime, *}
 import zio.internal.Platform
+import entities.types.{Event, Enter}
 
 object ExampleAppF extends IOApp:
 
@@ -32,17 +31,20 @@ object ExampleAppF extends IOApp:
     Dispatcher[IO].use { implicit dispatcher =>
       for
         topic <- Topic[IO, WebSocketFrame.Text]
-        interpreter <- api.interpreterAsync[IO]
+        interpreter <- ports.graphql.api.interpreterAsync[IO]
+
+        graphQLEndpoint = "/api/graphql" ->
+          CORS.policy(
+            Http4sAdapter.makeHttpServiceF[IO, Any, CalibanError](
+              interpreter
+            )
+          )
+
         _ <- BlazeServerBuilder[IO]
           .bindHttp(8088, "localhost")
           .withHttpWebSocketApp(wsBuilder =>
             Router[IO](
-              "/api/graphql" ->
-                CORS.policy(
-                  Http4sAdapter.makeHttpServiceF[IO, Any, CalibanError](
-                    interpreter
-                  )
-                ),
+              graphQLEndpoint,
               "/ws/graphql" ->
                 CORS.policy(
                   Http4sAdapter.makeWebSocketServiceF[IO, Any, CalibanError](
@@ -66,7 +68,7 @@ object ExampleAppF extends IOApp:
                   val parsedWebSocketInput: Stream[IO, Event] =
                     wsfStream
                       .collect { case Text(text, _) =>
-                        decode[Draw](text).getOrElse(Unknown(text))
+                        entities.Event.parse(text)
                       }
 
                   (entryStream ++ parsedWebSocketInput).evalMap(event =>

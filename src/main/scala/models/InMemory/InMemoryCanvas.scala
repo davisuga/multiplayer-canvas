@@ -1,6 +1,6 @@
-package multiplayer_canvas
+package models.canvas
 import scala.collection.mutable._
-import multiplayer_canvas.types._
+import entities.types._
 import scala.util.chaining._
 
 sealed trait InMemoryCanvasError
@@ -9,7 +9,7 @@ case object NoCanvas extends InMemoryCanvasError
 
 object InMemory {
   def createCanvas(xSize: Int, ySize: Int) =
-    val canvasPixels = createEmptyCanvas(xSize, ySize)
+    val canvasPixels = entities.Canvas.createEmptyCanvas(xSize, ySize)
     val id = inMemoryBoard.knownSize.toString()
     val canvas = Canvas(id, canvasPixels)
     inMemoryBoard.addOne(id, canvas)
@@ -27,7 +27,7 @@ object InMemory {
       case Some(canvas) =>
         println(s"Update pixel: ${pixel}")
 
-        val computedCanvas = multiplayer_canvas
+        val computedCanvas = entities.Canvas
           .addPixelToCanvas(canvas, pixel, x, y)
 
         inMemoryBoard

@@ -1,4 +1,5 @@
-package multiplayer_canvas.types;
+package entities.types
+
 import zio.stream.ZStream
 import zio._
 

@@ -1,16 +1,16 @@
-package multiplayer_canvas.graphql
-import multiplayer_canvas.types._
-import multiplayer_canvas.drawing_stream._
+package ports.graphql
+
+import entities.types._
 
 import caliban.GraphQL.graphQL
 import caliban.RootResolver
 import zio.ZIO
 import zio.stream.ZStream
-import multiplayer_canvas._
+import entities._
 import cats.effect.IO
 
 def getCanvas(id: ID) =
-  InMemory.getCanvas(id)
+  models.canvas.InMemory.getCanvas(id)
 
 def putPiece(boardId: ID, value: Pixel, timestamp: Long) = ???
 
@@ -22,7 +22,9 @@ case class Queries(canvas: (id: ID) => Option[Canvas])
 
 val queries = Queries(getCanvas)
 val mutations =
-  Mutations((size => InMemory.createCanvas(size.rows, size.columns)))
+  Mutations(
+    (size => models.canvas.InMemory.createCanvas(size.rows, size.columns))
+  )
 
 val api = graphQL(
   RootResolver(queries, mutations)
