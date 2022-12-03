@@ -2,7 +2,6 @@ package multiplayer_canvas
 import scala.collection.mutable._
 import multiplayer_canvas.types._
 import scala.util.chaining._
-import zio.ZIO
 
 sealed trait InMemoryCanvasError
 case object FailedToUpdate extends InMemoryCanvasError
@@ -14,7 +13,7 @@ object InMemory {
     val id = inMemoryBoard.knownSize.toString()
     val canvas = Canvas(id, canvasPixels)
     inMemoryBoard.addOne(id, canvas)
-    ZIO.succeed(canvas)
+    canvas
 
   val getCanvas = inMemoryBoard.get
 
@@ -23,7 +22,7 @@ object InMemory {
       y: Int,
       pixel: Pixel,
       id: String
-  ): ZIO[Any, Throwable, Canvas] =
+  ) =
     getCanvas(id) match {
       case Some(canvas) =>
         println(s"Update pixel: ${pixel}")
@@ -34,10 +33,9 @@ object InMemory {
         inMemoryBoard
           .put(id, computedCanvas)
           .tap(_ => println(s"Update canvas: ${computedCanvas}"))
-          .map(_ => ZIO.succeed(computedCanvas))
-          .getOrElse(ZIO.fail(Exception(FailedToUpdate.toString())))
+          .map(_ => (computedCanvas))
 
-      case None => ZIO.fail(Exception(NoCanvas.toString()))
+      case None => None
     }
 
 }
