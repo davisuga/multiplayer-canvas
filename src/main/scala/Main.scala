@@ -1,67 +1,85 @@
-import zio._
-import multiplayer_canvas.graphql._
+import caliban.{CalibanError, GraphQLInterpreter, Http4sAdapter}
+import caliban.interop.cats.implicits.*
+import cats.data.Kleisli
+import cats.effect.std.{Dispatcher, Queue}
+import cats.effect.unsafe.implicits.global
+import cats.effect.{ExitCode, IO, *}
+import io.circe.*
+import io.circe.generic.auto.*
+import io.circe.parser.*
+import io.circe.syntax.*
+import fs2.{Stream, *}
+import fs2.concurrent.Topic
+import multiplayer_canvas.drawing_stream.*
+import multiplayer_canvas.graphql.*
+import multiplayer_canvas.types.*
+import org.http4s.StaticFile
+import org.http4s.blaze.server.BlazeServerBuilder
+import org.http4s.implicits.*
+import org.http4s.server.Router
+import org.http4s.server.middleware.CORS
+import org.http4s.server.websocket.{WebSocketBuilder, WebSocketBuilder2}
+import org.http4s.websocket.WebSocketFrame
+import org.http4s.websocket.WebSocketFrame.{Close, Text}
+import zio.{Runtime, *}
+import zio.internal.Platform
 
-import caliban.ZHttpAdapter
-import io.netty.handler.codec.http.{HttpHeaderNames, HttpHeaderValues}
-import zio._
-import zio.stream._
-import zhttp.http._
+object ExampleAppF extends IOApp:
 
-import zhttp.service.Server
-import zhttp.socket.{WebSocketChannelEvent, WebSocketFrame}
-import zhttp.service.ChannelEvent.ChannelRead
-import zhttp.service.ChannelEvent
-import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._
-import multiplayer_canvas.types.Draw
-import multiplayer_canvas.drawing_stream._
-import multiplayer_canvas.types._
+  implicit val zioRuntime: Runtime[Any] = Runtime.default
 
-object MultiplayerCanvas extends ZIOAppDefault {
-  private val graphiql = Http.fromStream(ZStream.fromResource("graphiql.html"))
-  private val socket =
-    for
-      queue <- makeDrawingQueue()
-      stream = getDrawingStream(queue)
-      s = Http.collectZIO[WebSocketChannelEvent] {
-        case ChannelEvent(ch, ChannelRead(WebSocketFrame.Text("subscribe"))) =>
-          stream
-            .foreach(d => ch.write(WebSocketFrame.text(d.asJson.toString)))
-            *> ch.flush
-        case ChannelEvent(ch, ChannelRead(WebSocketFrame.Text(text))) =>
-          decode[Draw](text) match {
-            case Left(_) =>
-              ch.write(WebSocketFrame.text("failed to parse")) *> ch.flush
-            case Right(value) =>
-              multiplayer_canvas.draw.service
-                .draw(queue)(value)
-                .map(canvas =>
-                  ch.write(WebSocketFrame.text(canvas.asJson.toString))
-                )
-                *> ch.flush
+  override def run(args: List[String]) =
+    Dispatcher[IO].use { implicit dispatcher =>
+      for
+        topic <- Topic[IO, WebSocketFrame.Text]
+        interpreter <- api.interpreterAsync[IO]
+        _ <- BlazeServerBuilder[IO]
+          .bindHttp(8088, "localhost")
+          .withHttpWebSocketApp(wsBuilder =>
+            Router[IO](
+              "/api/graphql" ->
+                CORS.policy(
+                  Http4sAdapter.makeHttpServiceF[IO, Any, CalibanError](
+                    interpreter
+                  )
+                ),
+              "/ws/graphql" ->
+                CORS.policy(
+                  Http4sAdapter.makeWebSocketServiceF[IO, Any, CalibanError](
+                    wsBuilder,
+                    interpreter
+                  )
+                ),
+              "/graphiql" ->
+                Kleisli.liftF(StaticFile.fromResource("/graphiql.html", None)),
+              "/ws" -> {
 
-          }
-      }
-    yield s
+                val toClient = topic.subscribe(100)
 
-  override val run =
-    println("RUNNING THIS SHIT")
+                def fromClient(
+                    wsfStream: Stream[IO, WebSocketFrame]
+                ): Stream[IO, Unit] = {
 
-    (for {
-      websockets: Http[Any, Throwable, WebSocketChannelEvent, Unit] <- socket
-      interpreter <- getGraphQLInterpreter()
-      _ <- Server
-        .start(
-          8088,
-          Http.collectHttp[Request] {
-            case _ -> !! / "api" / "graphql" =>
-              ZHttpAdapter.makeHttpService(interpreter)
-            case _ -> !! / "ws" / "graphql" =>
-              ZHttpAdapter.makeWebSocketService(interpreter)
-            case _ -> !! / "graphiql" => graphiql
-            case _ -> !! / "ws"       => websockets.toSocketApp.toHttp
+                  val entryStream: Stream[IO, Event] =
+                    Stream.emits(Seq(Enter()))
 
-          }
-        )
-        .forever
-    } yield ()).exitCode
-}
+                  val parsedWebSocketInput: Stream[IO, Event] =
+                    wsfStream
+                      .collect { case Text(text, _) =>
+                        decode[Draw](text).getOrElse(Unknown(text))
+                      }
+
+                  (entryStream ++ parsedWebSocketInput).evalMap(event =>
+                    topic.publish1(Text(event.asJson.toString)) >> IO.pure(())
+                  )
+                }
+
+                wsBuilder.build(toClient, fromClient).to
+              }
+            ).orNotFound
+          )
+          .serve
+          .compile
+          .drain
+      yield ExitCode.Success
+    }
