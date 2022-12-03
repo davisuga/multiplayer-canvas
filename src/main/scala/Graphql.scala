@@ -7,34 +7,23 @@ import caliban.RootResolver
 import zio.ZIO
 import zio.stream.ZStream
 import multiplayer_canvas._
+import cats.effect.IO
 
 def getCanvas(id: ID) =
   InMemory.getCanvas(id)
 
 def putPiece(boardId: ID, value: Pixel, timestamp: Long) = ???
 
-case class Subscriptions(
-    newDrawings: ZStream[Any, Nothing, Draw]
-)
 case class Mutations(
-    draw: Draw => ZIO[Any, Throwable, Canvas],
-    createCanvas: Size => ZIO[Any, Nothing, Canvas]
+    createCanvas: Size => Unit
 )
 
 case class Queries(canvas: (id: ID) => Option[Canvas])
 
 val queries = Queries(getCanvas)
+val mutations =
+  Mutations((size => InMemory.createCanvas(size.rows, size.columns)))
 
-def getGraphQLInterpreter() =
-  for {
-    queue <- makeDrawingQueue()
-    mutations =
-      Mutations(
-        multiplayer_canvas.draw.service.draw(queue),
-        (size => InMemory.createCanvas(size.rows, size.columns))
-      )
-
-    interpreter <- graphQL(
-      RootResolver(queries, mutations)
-    ).interpreter
-  } yield (interpreter)
+val api = graphQL(
+  RootResolver(queries, mutations)
+)
