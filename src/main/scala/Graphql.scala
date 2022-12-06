@@ -7,25 +7,27 @@ import caliban.RootResolver
 import zio.ZIO
 import zio.stream.ZStream
 import entities._
+
 import cats.effect.IO
+// Interop imports
+import caliban.interop.cats.implicits._
+import cats.effect.std.Dispatcher
 
 def getCanvas(id: ID) =
   models.canvas.InMemory.getCanvas(id)
 
 def putPiece(boardId: ID, value: Pixel, timestamp: Long) = ???
 
-case class Mutations(
-    createCanvas: Size => Unit
+case class Mutations[F[_]](
+  createCanvas: Size => F[Canvas]
 )
 
 case class Queries(canvas: (id: ID) => Option[Canvas])
 
 val queries = Queries(getCanvas)
 val mutations =
-  Mutations(
-    (size => models.canvas.InMemory.createCanvas(size.rows, size.columns))
-  )
+  Mutations(size => models.canvas.InMemory.createCanvas(size.rows, size.columns))
 
-val api = graphQL(
+def api(implicit dispatcher: Dispatcher[cats.effect.IO]) = graphQL(
   RootResolver(queries, mutations)
 )
