@@ -2,6 +2,7 @@ package models.canvas
 import scala.collection.mutable._
 import entities.types._
 import scala.util.chaining._
+import cats.effect.IO
 
 sealed trait InMemoryCanvasError
 case object FailedToUpdate extends InMemoryCanvasError
@@ -13,15 +14,16 @@ object InMemory {
     val id = inMemoryBoard.knownSize.toString()
     val canvas = Canvas(id, canvasPixels)
     inMemoryBoard.addOne(id, canvas)
-    canvas
+    services.addTopic(id) >>
+      IO.pure(canvas)
 
   val getCanvas = inMemoryBoard.get
 
   def writePixel(
-      x: Int,
-      y: Int,
-      pixel: Pixel,
-      id: String
+    x: Int,
+    y: Int,
+    pixel: Pixel,
+    id: String
   ) =
     getCanvas(id) match {
       case Some(canvas) =>
@@ -33,7 +35,7 @@ object InMemory {
         inMemoryBoard
           .put(id, computedCanvas)
           .tap(_ => println(s"Update canvas: ${computedCanvas}"))
-          .map(_ => (computedCanvas))
+          .map(_ => computedCanvas)
 
       case None => None
     }
