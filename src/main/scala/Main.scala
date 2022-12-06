@@ -21,24 +21,33 @@ import org.http4s.websocket.WebSocketFrame
 import org.http4s.websocket.WebSocketFrame.{Close, Text}
 import zio.{Runtime, *}
 import zio.internal.Platform
-import entities.types.{Event, Enter}
+import entities.types.{Enter, Event}
+import cats.effect._, org.http4s._, org.http4s.dsl.io._
+implicit val zioRuntime: Runtime[Any] = Runtime.default
+
+def makeWsRoutes(wsBuilder: WebSocketBuilder2[cats.effect.IO]) =
+  HttpRoutes.of[IO] {
+    case GET -> Root / topicName => {
+      services.DrawEvent.makeWsHandles(topicName) match {
+        case Some(send, receive) =>
+          wsBuilder.build(receive, send).to
+        case None => IO.pure(Response.notFound)
+      }
+    }
+  }
 
 object ExampleAppF extends IOApp:
-
-  implicit val zioRuntime: Runtime[Any] = Runtime.default
 
   override def run(args: List[String]) =
     Dispatcher[IO].use { implicit dispatcher =>
       for
-        topic <- Topic[IO, WebSocketFrame.Text]
         interpreter <- ports.graphql.api.interpreterAsync[IO]
-
         graphQLEndpoint = "/api/graphql" ->
-          CORS.policy(
+          (CORS.policy(
             Http4sAdapter.makeHttpServiceF[IO, Any, CalibanError](
               interpreter
             )
-          )
+          ))
 
         _ <- BlazeServerBuilder[IO]
           .bindHttp(8088, "localhost")
@@ -54,30 +63,7 @@ object ExampleAppF extends IOApp:
                 ),
               "/graphiql" ->
                 Kleisli.liftF(StaticFile.fromResource("/graphiql.html", None)),
-              "/ws" -> {
-
-                val toClient = topic.subscribe(100)
-
-                def fromClient(
-                    wsfStream: Stream[IO, WebSocketFrame]
-                ): Stream[IO, Unit] = {
-
-                  val entryStream: Stream[IO, Event] =
-                    Stream.emits(Seq(Enter()))
-
-                  val parsedWebSocketInput: Stream[IO, Event] =
-                    wsfStream
-                      .collect { case Text(text, _) =>
-                        entities.Event.parse(text)
-                      }
-
-                  (entryStream ++ parsedWebSocketInput).evalMap(event =>
-                    topic.publish1(Text(event.asJson.toString)) >> IO.pure(())
-                  )
-                }
-
-                wsBuilder.build(toClient, fromClient).to
-              }
+              "/ws" -> makeWsRoutes(wsBuilder)
             ).orNotFound
           )
           .serve
