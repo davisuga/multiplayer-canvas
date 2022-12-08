@@ -1,6 +1,6 @@
 package models.canvas
 import scala.collection.mutable._
-import entities.types._
+import entities._
 import scala.util.chaining._
 import cats.effect.IO
 
@@ -10,7 +10,7 @@ case object NoCanvas extends InMemoryCanvasError
 
 object InMemory {
   def createCanvas(xSize: Int, ySize: Int) =
-    val canvasPixels = entities.Canvas.createEmptyCanvas(xSize, ySize)
+    val canvasPixels = Canvas.empty(xSize, ySize)
     val id = inMemoryBoard.knownSize.toString()
     val canvas = Canvas(id, canvasPixels)
     inMemoryBoard.addOne(id, canvas)
@@ -29,8 +29,8 @@ object InMemory {
       case Some(canvas) =>
         println(s"Update pixel: ${pixel}")
 
-        val computedCanvas = entities.Canvas
-          .addPixelToCanvas(canvas, pixel, x, y)
+        val computedCanvas = Canvas
+          .addPixel(canvas, pixel, x, y)
 
         inMemoryBoard
           .put(id, computedCanvas)
