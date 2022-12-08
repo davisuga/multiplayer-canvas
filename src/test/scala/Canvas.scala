@@ -1,6 +1,3 @@
-import zio._
-import zio.test.{test, _}
-import zio.test.Assertion._
 import multiplayer_canvas.types._
 import multiplayer_canvas._
 

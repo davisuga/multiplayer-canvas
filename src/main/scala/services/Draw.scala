@@ -1,6 +1,6 @@
 package draw.service
 
-import entities.types._
+import entities._
 import zio._
 import util.chaining.scalaUtilChainingOps
 

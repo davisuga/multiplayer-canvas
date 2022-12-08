@@ -1,16 +1,13 @@
 package ports.graphql
 
-import entities.types._
-
 import caliban.GraphQL.graphQL
 import caliban.RootResolver
+import cats.effect.IO
+import entities.*
 import zio.ZIO
 import zio.stream.ZStream
-import entities._
-
-import cats.effect.IO
 // Interop imports
-import caliban.interop.cats.implicits._
+import caliban.interop.cats.implicits.*
 import cats.effect.std.Dispatcher
 
 def getCanvas(id: ID) =

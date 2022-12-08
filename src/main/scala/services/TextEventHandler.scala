@@ -8,8 +8,7 @@ import cats.effect.IO
 import entities._
 import io.circe.generic.auto.*
 import io.circe.syntax.*
-import entities.types.Enter
-import entities.types.Event
+import entities.*
 
 def makeStreamOfTopic(
   topic: Topic[IO, WebSocketFrame.Text]
@@ -36,4 +35,4 @@ object DrawEvent:
   ) =
     topicMap
       .get(topicName)
-      .map(topic => (makeStreamOfTopic(topic), topic.subscribe(100)))
+      .map(topic => (makeStreamOfTopic(topic), topic.subscribe(10)))
