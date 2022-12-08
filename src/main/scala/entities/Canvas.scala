@@ -1,26 +1,25 @@
 package entities
-import entities.types.{Color, Pixel}
+
+import entities.{Color, ID, Pixel}
+
+case class Canvas(id: ID, value: List[List[Pixel]])
+
 object Canvas {
 
-  def createEmptyCanvas(rows: Int, cols: Int) =
-    val emptyPixel = Pixel(Color(0, 0, 0))
+  def empty(rows: Int, cols: Int) =
+    val emptyPixel = Pixel.empty
     val emptyRow = List.fill(cols) { emptyPixel }
 
     List.fill(rows) {
       emptyRow
     }
 
-  def addPixelToCanvas(
-    canvas: entities.types.Canvas,
+  def addPixel(
+    canvas: Canvas,
     pixel: Pixel,
     x: Int,
     y: Int
   ) =
-    entities.types.Canvas(
-      canvas.id,
-      canvas.value.zipWithIndex.map((row, i) =>
-        row.zipWithIndex.map((elem, j) => if j == x && i == y then pixel else elem)
-      )
-    )
+    canvas.copy(value = canvas.value.updated(x, canvas.value(x).updated(y, pixel)))
 
 }

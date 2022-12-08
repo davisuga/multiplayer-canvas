@@ -4,7 +4,14 @@ import io.circe.*
 import io.circe.generic.auto.*
 import io.circe.parser.*
 import io.circe.syntax.*
-import entities.types.{Draw, Unknown}
+
+import entities.ID
+
+sealed trait Event
+
+case class Draw(canvasId: ID, pixel: Pixel, timestamp: Int, x: Int, y: Int) extends Event
+case class Enter() extends Event
+case class Unknown(raw: String) extends Event
 
 object Event {
 
