@@ -23,51 +23,5 @@ import zio.{Runtime, *}
 import zio.internal.Platform
 import entities.types.{Enter, Event}
 import cats.effect._, org.http4s._, org.http4s.dsl.io._
-implicit val zioRuntime: Runtime[Any] = Runtime.default
 
-def makeWsRoutes(wsBuilder: WebSocketBuilder2[cats.effect.IO]) =
-  HttpRoutes.of[IO] {
-    case GET -> Root / topicName => {
-      services.DrawEvent.makeWsHandles(topicName) match {
-        case Some(send, receive) =>
-          wsBuilder.build(receive, send).to
-        case None => IO.pure(Response.notFound)
-      }
-    }
-  }
-
-object ExampleAppF extends IOApp:
-
-  override def run(args: List[String]) =
-    Dispatcher[IO].use { implicit dispatcher =>
-      for
-        interpreter <- ports.graphql.api.interpreterAsync[IO]
-        graphQLEndpoint = "/api/graphql" ->
-          (CORS.policy(
-            Http4sAdapter.makeHttpServiceF[IO, Any, CalibanError](
-              interpreter
-            )
-          ))
-
-        _ <- BlazeServerBuilder[IO]
-          .bindHttp(8088, "localhost")
-          .withHttpWebSocketApp(wsBuilder =>
-            Router[IO](
-              graphQLEndpoint,
-              "/ws/graphql" ->
-                CORS.policy(
-                  Http4sAdapter.makeWebSocketServiceF[IO, Any, CalibanError](
-                    wsBuilder,
-                    interpreter
-                  )
-                ),
-              "/graphiql" ->
-                Kleisli.liftF(StaticFile.fromResource("/graphiql.html", None)),
-              "/ws" -> makeWsRoutes(wsBuilder)
-            ).orNotFound
-          )
-          .serve
-          .compile
-          .drain
-      yield ExitCode.Success
-    }
+val M = server_p.Server
