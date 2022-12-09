@@ -1,7 +1,8 @@
 package entities
 
 import entities.{Color, ID, Pixel}
-
+import utils.*
+import util.chaining.scalaUtilChainingOps
 case class Canvas(id: ID, value: List[List[Pixel]])
 
 object Canvas {
@@ -19,7 +20,10 @@ object Canvas {
     pixel: Pixel,
     x: Int,
     y: Int
-  ) =
-    canvas.copy(value = canvas.value.updated(x, canvas.value(x).updated(y, pixel)))
+  ) = canvas
+    .value(x)
+    .updated(y, pixel)
+    .pipe(canvas.value.updated(x, _))
+    .pipe(newVal => canvas.copy(value = newVal))
 
 }
