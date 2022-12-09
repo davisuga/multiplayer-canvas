@@ -2,7 +2,9 @@ package entities
 
 import entities.{Color, ID, Pixel}
 import utils.*
+
 import util.chaining.scalaUtilChainingOps
+
 case class Canvas(id: ID, value: List[List[Pixel]])
 
 object Canvas {
