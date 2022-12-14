@@ -45,6 +45,7 @@ object Server extends IOApp:
   override def run(args: List[String]) =
     Dispatcher[IO].use { implicit dispatcher =>
       for
+        _ <- services.DrawEvent.startupHandler()
         interpreter <- ports.graphql.api.interpreterAsync[IO]
         graphQLEndpoint = "/api/graphql" ->
           (CORS.policy(
