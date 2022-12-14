@@ -20,4 +20,9 @@ object Canvas {
       given models.redis.RedisEnv = client
       models.redis.Canvas.draw(canvas)
     }
+  def getIds() =
+    models.redis.client.use { client =>
+      given models.redis.RedisEnv = client
+      models.redis.Canvas.getIds
+    }
 }

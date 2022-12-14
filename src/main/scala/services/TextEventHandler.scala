@@ -10,6 +10,8 @@ import io.circe.generic.auto.*
 import io.circe.syntax.*
 import entities.*
 import entities.Event.*
+import cats.instances.list._
+import cats.syntax.parallel._
 
 def makeStreamOfTopic(
   topic: Topic[IO, WebSocketFrame.Text],
@@ -31,10 +33,17 @@ def makeStreamOfTopic(
 
 val topicMap = Map.empty[String, Topic[cats.effect.IO, WebSocketFrame.Text]]
 
+def emptyTopic() = Topic[cats.effect.IO, WebSocketFrame.Text]
+
 def addTopic(id: String) =
-  Topic[cats.effect.IO, WebSocketFrame.Text].map(topicMap.addOne(id, _))
+  emptyTopic().map(topicMap.addOne(id, _))
 
 object DrawEvent:
+  def populateTopicMap =
+    services.Canvas
+      .getIds()
+      .flatMap(_.map(id => emptyTopic().map(topicMap.addOne(id, _)).debug()).toList.parSequence)
+
   def makeWsHandles(
     topicName: String
   ) =
@@ -51,3 +60,7 @@ object DrawEvent:
          topic.subscribe(10)
         )
       )
+
+  def startupHandler() =
+    println("setting up topics...")
+    populateTopicMap >> IO.pure(println("added persisted topics to memory"))
