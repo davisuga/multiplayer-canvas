@@ -11,19 +11,17 @@ import caliban.interop.cats.implicits.*
 import cats.effect.std.Dispatcher
 
 def getCanvas(id: ID) =
-  models.canvas.InMemory.getCanvas(id)
-
-def putPiece(boardId: ID, value: Pixel, timestamp: Long) = ???
+  services.Canvas.read(id)
 
 case class Mutations[F[_]](
-  createCanvas: Size => F[Canvas]
+  createCanvas: Size => F[String]
 )
 
-case class Queries(canvas: (id: ID) => Option[Canvas])
+case class Queries[F[_]](canvas: (id: ID) => F[Option[Canvas]])
 
 val queries = Queries(getCanvas)
 val mutations =
-  Mutations(size => models.canvas.InMemory.createCanvas(size.rows, size.columns))
+  Mutations(size => services.Canvas.create(size.rows, size.columns))
 
 def api(implicit dispatcher: Dispatcher[cats.effect.IO]) = graphQL(
   RootResolver(queries, mutations)
