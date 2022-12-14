@@ -9,18 +9,23 @@ import entities._
 import io.circe.generic.auto.*
 import io.circe.syntax.*
 import entities.*
+import entities.Event.*
 
 def makeStreamOfTopic(
-  topic: Topic[IO, WebSocketFrame.Text]
+  topic: Topic[IO, WebSocketFrame.Text],
+  handler: Event => IO[Any] = _ => IO.pure(())
 )(incomingStream: Stream[IO, WebSocketFrame]) =
 
-  val entryStream = Stream.emits(Seq(Enter()))
+  val entryStream = Stream.emits(Seq(Enter))
 
   val parsedWebSocketInput = incomingStream.collect { case WebSocketFrame.Text(text, _) =>
-    entities.Event.parse(text)
+    entities.Event.fromJson(text)
   }
 
-  val publishEventToTopic = (event: Event) => topic.publish1(WebSocketFrame.Text(event.asJson.toString)) >> IO.pure(())
+  val publishEventToTopic = (event: Event) =>
+    topic.publish1(WebSocketFrame.Text(event.asJson.toString))
+      >> handler(event)
+      >> IO.pure(())
 
   (entryStream ++ parsedWebSocketInput).evalMap(publishEventToTopic)
 
@@ -35,4 +40,14 @@ object DrawEvent:
   ) =
     topicMap
       .get(topicName)
-      .map(topic => (makeStreamOfTopic(topic), topic.subscribe(10)))
+      .map(topic =>
+        (makeStreamOfTopic(topic,
+                           {
+                             case draw: Draw =>
+                               services.Draw.draw(draw)
+                             case _ => IO.pure(())
+                           }
+         ),
+         topic.subscribe(10)
+        )
+      )
