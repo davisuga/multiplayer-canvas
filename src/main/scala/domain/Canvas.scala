@@ -1,5 +1,8 @@
 package entities
-
+import io.circe.*
+import io.circe.generic.auto.*
+import io.circe.parser.*
+import io.circe.syntax.*
 import entities.{Color, ID, Pixel}
 import utils.*
 
@@ -28,4 +31,5 @@ object Canvas {
     .pipe(canvas.value.updated(x, _))
     .pipe(newVal => canvas.copy(value = newVal))
 
+  def fromJson(src: String) = decode[Canvas](src).toOption
 }
