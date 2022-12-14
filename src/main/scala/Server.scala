@@ -6,7 +6,9 @@ import cats.data.Kleisli
 import cats.effect.std.{Dispatcher, Queue}
 import cats.effect.unsafe.implicits.global
 import cats.effect.{ExitCode, IO, *}
-import entities.{Enter, Event}
+import entities.*
+import Event.*
+
 import fs2.concurrent.Topic
 import io.circe.*
 import io.circe.generic.auto.*
