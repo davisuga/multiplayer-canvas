@@ -1,4 +1,7 @@
 import entities.*
+import cats.effect.{IO, SyncIO}
+import munit.CatsEffectSuite
+
 class CanvasSuite extends munit.FunSuite {
   test("Draw a pixel") {
     val empty = Canvas("0", Canvas.empty(3, 4))
@@ -30,5 +33,15 @@ class CanvasSuite extends munit.FunSuite {
         )
       )
     )
+  }
+}
+
+class CanvasServicesSuite extends CatsEffectSuite {
+  test("Create a canvas") {
+    services.Canvas.create(1028, 1028, "testing").assertEquals("testing")
+  }
+  test("List canvas ids") {
+    services.Canvas.create(1028, 1028, "testing2")
+      >> services.Canvas.getIds() assertEquals Seq("testing", "testing2")
   }
 }
