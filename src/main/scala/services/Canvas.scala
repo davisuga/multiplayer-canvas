@@ -8,12 +8,11 @@ object Canvas {
       given models.redis.RedisEnv = client
       models.redis.Canvas.read(canvasId)
     }
-  def create(rows: Int, cols: Int) =
-    val id = java.util.UUID.randomUUID().toString()
-    val emptyCanvas = entities.Canvas(id, entities.Canvas.empty(cols, rows))
+  def create(rows: Int, cols: Int, uuid: String = java.util.UUID.randomUUID().toString()) =
+    val emptyCanvas = entities.Canvas(uuid, entities.Canvas.empty(cols, rows))
     models.redis.client.use { client =>
       given models.redis.RedisEnv = client
-      models.redis.Canvas.create(emptyCanvas) >> services.addTopic(id) >> IO.pure(id)
+      models.redis.Canvas.create(emptyCanvas) >> services.addTopic(uuid) >> IO.pure(uuid)
     }
   def draw(canvas: Event.Draw) =
     models.redis.client.use { client =>
