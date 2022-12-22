@@ -1,1 +1,2 @@
-val M = http.Server
+package app
+val main = http.Server.main
