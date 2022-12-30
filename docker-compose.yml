@@ -1,0 +1,23 @@
+version: "3"
+services:
+  cache:
+    image: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --save 20 1 --loglevel warning --requirepass $REDIS_PWD
+    volumes:
+      - cache:/data
+  web:
+    image: sbtscala/scala-sbt:openjdk-oraclelinux8-11.0.16_1.8.0_3.2.1
+    volumes:
+      - $PWD:/root
+    command: sbt run
+    ports:
+      - "8088:8088"
+    environment:
+      - REDIS_CONN_STRING=redis://$REDIS_PWD@cache
+    
+volumes:
+  cache:
+    driver: local
