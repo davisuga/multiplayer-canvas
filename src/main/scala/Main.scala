@@ -1,2 +1,4 @@
 package app
-val main = http.Server.main
+object Main {
+  final def main(args: Array[String]) = http.Server.main(args)
+}
