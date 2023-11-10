@@ -9,7 +9,8 @@ lazy val root = project
     version := "0.1.0-SNAPSHOT",
     scalaVersion := scala3Version,
     crossPaths := false,
-    libraryDependencies += "org.scalameta" %% "munit" % "0.7.29" % Test
+    libraryDependencies += "org.scalameta" %% "munit" % "0.7.29" % Test,
+    assembly / mainClass := Some("http.Server")
   )
 
 val cassandraLibs =
@@ -49,3 +50,12 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-generic",
   "io.circe" %% "circe-parser"
 ).map(_ % circeVersion)
+assemblyMergeStrategy in assembly := {
+  case PathList("META-INF", "io.netty.versions.properties") =>
+    MergeStrategy.discard
+  case PathList(ps @ _*) if ps.last == "module-info.class" =>
+    MergeStrategy.concat
+  case x =>
+    val oldStrategy = (assemblyMergeStrategy in assembly).value
+    oldStrategy(x)
+}
